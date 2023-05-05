@@ -4,7 +4,7 @@
 
 This project is configured using `Visual Studio`, using external libraries such as `Eigen`, `Yaml`, etc., these external libraries are managed by `vcpkg`
 
-In my environment, the project should be built under `Release` and `x86` mode, and `vcpkg` should have the packages as follow:
+In my environment, the project should be built under `Release` and `x64` mode, and `vcpkg` should have the packages as follow:
 
 > eigen3:x64-windows-static 
 >
@@ -12,7 +12,7 @@ In my environment, the project should be built under `Release` and `x86` mode, a
 >
 > yaml-cpp:x64-windows-static
 
-Every time, in the initialization process, calculate the magnetization process and calculate the field around the surface of each micro-robot, then based on the field generate the magnetic line’s start points. In the first step, move the 
+Every time, in the initialization process, calculate the magnetization process and calculate the field around the surface of each micro-robot, the torque to each ball, then based on the field generate the magnetic line’s start points. In the first step, move all the test particles to form the magnetic line.
 
 ### Run the project
 
