@@ -3,7 +3,6 @@
 #include "Simulator.h"
 
 #include <iostream>
-// asdasdsaff
 using namespace PhysX;
 
 inline std::unique_ptr<ArgsParser> BuildArgsParser() {

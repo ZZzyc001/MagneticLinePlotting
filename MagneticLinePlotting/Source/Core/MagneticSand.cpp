@@ -10,6 +10,11 @@
 #include "eigen3/unsupported/Eigen/src/KroneckerProduct/KroneckerTensorProduct.h"
 #include <Eigen/src/IterativeLinearSolvers/ConjugateGradient.h>
 
+// #define PLANARMOTION
+// #define DRAWALLFIELD4
+// #define ROTATEEXTERNALFIELD
+// #define TESTONEBALL
+
 namespace PhysX {
 
     template class UniformSource<2>;
@@ -45,16 +50,6 @@ namespace PhysX {
             root["objects"].push_back(node);
         }
 
-        //{ // Description of magnetic dipole.
-        //    YAML::Node node;
-        //    node["name"]                 = "dipole";
-        //    node["data_mode"]            = "dynamic";
-        //    node["primitive_type"]       = "line_list";
-        //    node["indexed"]              = false;
-        //    node["color_map"]["enabled"] = true;
-        //    root["objects"].push_back(node);
-        //}
-
         {
             YAML::Node node;
             node["name"]                    = "history";
@@ -73,9 +68,7 @@ namespace PhysX {
             std::ofstream fout(frameDir + "/particles.mesh", std::ios::binary);
             IO::writeValue(fout, uint(_spos.size()));
             for (const auto & pos : _spos) {
-                // IO::writeValue(fout, Vector2d(_pos[i][0], _pos[i][1]).template cast<float>().eval());
                 IO::writeValue(fout, pos.template cast<float>().eval());
-                // std::cout << pos << std::endl;
             };
             if constexpr (Dim == 3) {
                 for (int i = 0; i < _spos.size(); ++i) {
@@ -84,31 +77,8 @@ namespace PhysX {
             }
             for (int i = 0; i < _spos.size(); ++i) {
                 IO::writeValue(fout, (float) 0.);
-                // IO::writeValue(fout, (float) _M[i].norm());
             };
         }
-
-        // if constexpr (Dim == 3) { // Write particles.
-        //     std::ofstream fout("C:\\Users\\zhuyu\\Desktop\\ETH\\plotting\\two multi-chain\\particle.txt");
-        //     for (int i = 0; i < 100; ++i) {
-        //         // IO::writeValue(fout, Vector2d(_pos[i][0], _pos[i][1]).template cast<float>().eval());
-        //         fout << "v " << _pos[i][0] << ' ' << _pos[i][1] << ' ' << _pos[i][2] << std::endl;
-        //     };
-        // }
-
-        //{ // Write the magnetic dipole.
-        //    std::ofstream fout(frameDir + "/dipole.mesh", std::ios::binary);
-        //    IO::writeValue(fout, (uint(2 * _pos.size())));
-        //    for (int i = 0; i < _n; ++i) {
-        //        IO::writeValue(fout, _pos[i].template cast<float>().eval());
-        //        IO::writeValue(fout, (_pos[i] + 10000 * _M[i]).template cast<float>().eval());
-        //    }
-        //    for (int i = 0; i < _n; ++i) {
-        //        const float v = float(_M[i].norm());
-        //        IO::writeValue(fout, v);
-        //        IO::writeValue(fout, v);
-        //    }
-        //}
 
         if constexpr (Dim == 3) {
             double maximum = -1;
@@ -173,7 +143,7 @@ namespace PhysX {
             {
                 static int    frame = -1;
                 int           base  = 0;
-                std::ofstream fout("C:\\Users\\zhuyu\\Desktop\\bd\\bd.obj");
+                std::ofstream fout(frameDir + "/line.obj");
                 std::cout << _sample_pos.size();
                 for (int i = 0; i < _sample_pos.size(); ++i) {
                     int cnt = 0;
@@ -212,25 +182,19 @@ namespace PhysX {
 
     template<int Dim>
     void MagneticSand<Dim>::saveFrame(const std::string & frameDir) const {
-        std::ofstream fout(frameDir + "/sand.sav", std::ios::binary);
-        IO::writeValue(fout, _pos);
     }
 
     template<int Dim>
     void MagneticSand<Dim>::loadFrame(const std::string & frameDir) {
-        std::ifstream fin(frameDir + "/sand.sav", std::ios::binary);
-        IO::readValue(fin, _pos);
     }
 
     template<int Dim>
     void MagneticSand<Dim>::initialize() {
-        // double degs[] = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90 };
-        ////double degs[] = { 90 };
-        // for (auto & deg : degs)
-        //     deg = deg / 180 * kPi;
-
-        // static double torqueo[40];
-        // static double torquet[40];
+#ifdef ROTATEEXTERNALFIELD
+        double degs[] = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90 };
+        for (auto & deg : degs)
+            deg = deg / 180 * kPi;
+#endif // ROTATEEXTERNALFIELD
 
         if constexpr (Dim == 3) {
             std::cout << _n << std::endl;
@@ -254,49 +218,50 @@ namespace PhysX {
                     _sources.clear();
                     _sources.push_back(std::move(source));
 
-                    // cal_mag_linearly(_n / 2);
+#ifdef TESTONEBALL
 
-                    // VectorDd torquea = VectorDd::Zero();
+                    cal_mag_linearly(_n / 2);
 
-                    // for (int i = 0; i < _n / 2; ++i) {
-                    //     VectorDd field = VectorDd::Zero();
-                    //     for (const auto & source : _sources)
-                    //         field += source->field_at_position(_pos[i]);
+                    VectorDd torquea = VectorDd::Zero();
 
-                    //    torquea += _M[i].cross(field);
-                    //}
+                    for (int i = 0; i < _n / 2; ++i) {
+                        VectorDd field = VectorDd::Zero();
+                        for (const auto & source : _sources)
+                            field += source->field_at_position(_pos[i]);
 
-                    // std::cout << "Torque from the magnetic field of the source: " << torque.norm() << std::endl;
+                        torquea += _M[i].cross(field);
+                    }
 
-                    // cal_mag_linearly(_n);
+                    std::cout << "Torque from the magnetic field of the source: " << torque.norm() << std::endl;
+#else
+
                     cal_mag_linearly(_n);
 
-                    // VectorDd       torquea   = VectorDd::Zero();
-                    // VectorDd       torqueb   = VectorDd::Zero();
-                    // double         force     = 0;
-                    // const VectorDd centerhat = _ballCenter[0] / _ballCenter[0].norm();
-                    // for (int i = 0; i < _n; ++i) {
-                    //     // torqueb += _M[i].cross(cal_field_at_position(_pos[i]));
-                    //     VectorDd F = cal_force(i);
-                    //     torquea += (_pos[i] - _ballCenter[1]).cross(F);
-                    //     torqueb += _ballCenter[1].cross(F);
-                    //     force += F.dot(centerhat);
-                    // }
+                    VectorDd       torquea   = VectorDd::Zero();
+                    VectorDd       torqueb   = VectorDd::Zero();
+                    double         force     = 0;
+                    const VectorDd centerhat = _ballCenter[0] / _ballCenter[0].norm();
+                    for (int i = 0; i < _n; ++i) {
+                        VectorDd F = cal_force(i);
+                        torquea += (_pos[i] - _ballCenter[1]).cross(F);
+                        torqueb += _ballCenter[1].cross(F);
+                        force += F.dot(centerhat);
+                    }
 
-                    //// torqueo[degt / 5] = torquea[2];
-                    //// torquet[degt / 5] = torqueb[2];
-
-                    // torque1[(degt - degs) / 5][degs / 15] = torquea[2];
-                    // torque2[(degt - degs) / 5][degs / 15] = torqueb[2];
-                    // forcerr[(degt - degs) / 5][degs / 15] = force;
-                    //// torqua1[(degt % 180) / 5][degs / 15]  = torquea[2];
-                    //// torqua2[(degt % 180) / 5][degs / 15]  = torqueb[2];
-                    //// forcear[(degt % 180) / 5][degs / 15]  = force;
+                    torque1[(degt - degs) / 5][degs / 15] = torquea[2];
+                    torque2[(degt - degs) / 5][degs / 15] = torqueb[2];
+                    forcerr[(degt - degs) / 5][degs / 15] = force;
+                    torqua1[(degt % 180) / 5][degs / 15]  = torquea[2];
+                    torqua2[(degt % 180) / 5][degs / 15]  = torqueb[2];
+                    forcear[(degt % 180) / 5][degs / 15]  = force;
+#endif // TESTONEBALL
                 }
+#ifdef ROTATEEXTERNALFIELD
 
-                // std::cout << degs << '\t' << diff1.norm() / (2 * _eps) << '\t' << diff2.norm() / (2 * _eps) << '\t' << difft.norm() / (2 * _eps) << std::endl;
+                std::cout << degs << '\t' << diff1.norm() / (2 * _eps) << '\t' << diff2.norm() / (2 * _eps) << '\t' << difft.norm() / (2 * _eps) << std::endl;
+#endif // ROTATEEXTERNALFIELD
             }
-            // printTorque();
+            printTorque();
 
             generateSampleParticle();
         }
@@ -314,7 +279,6 @@ namespace PhysX {
         int row = Dim * number;
         A       = MatrixXd::Identity(row, row);
 
-        // double coef = pow(_r, 3) * 100;
         double coef = (_mu_r - 1) / (_mu_r + 2) * std::pow(_r, 3);
 
 #pragma omp parallel for
@@ -385,12 +349,13 @@ namespace PhysX {
                     pos += (k_1 + 2 * k_2 + 2 * k_3 + k_4) * dt / 6;
                 } else
                     _fixed[i] = true;
-                // pos[2] = 0;
+#ifdef PLANARMOTION
+                pos[2] = 0;
+#endif // PLANARMOTION
             }
 
-        for (int i = 0; i < _sample_pos.size(); ++i) {
+        for (int i = 0; i < _sample_pos.size(); ++i)
             _history[i].push_back(_sample_pos[i]);
-        }
 
         if (t >= 1.0) {
             t = 0;
@@ -403,9 +368,11 @@ namespace PhysX {
     template<int Dim>
     MagneticSand<Dim>::VectorDd MagneticSand<Dim>::cal_field_dir_at_position(const VectorDd & pos) const {
         VectorDd M = VectorDd::Zero();
-        // for (const auto & source : _sources) {
-        //     M += source->field_at_position(pos);
-        // }
+#ifdef DRAWALLFIELD
+        for (const auto & source : _sources) {
+            M += source->field_at_position(pos);
+        }
+#endif // DRAWALLFIELD
 
         for (int i = 0; i < _n; ++i) {
             VectorDd r     = pos - _pos[i];
@@ -423,10 +390,11 @@ namespace PhysX {
     template<int Dim>
     MagneticSand<Dim>::VectorDd MagneticSand<Dim>::cal_field_at_position(const VectorDd & pos) const {
         VectorDd M = VectorDd::Zero();
-        // for (const auto & source : _sources) {
-        //     M += source->field_at_position(pos);
-        // }
-
+#ifdef DRAWALLFIELD
+        for (const auto & source : _sources) {
+            M += source->field_at_position(pos);
+        }
+#endif // DRAWALLFIELD
         for (int i = 0; i < _n; ++i) {
             VectorDd r     = pos - _pos[i];
             VectorDd r_hat = r / r.norm();
@@ -439,9 +407,11 @@ namespace PhysX {
     template<int Dim>
     double MagneticSand<Dim>::cal_field_norm_at_position(const VectorDd & pos) const {
         VectorDd M = VectorDd::Zero();
-        // for (const auto & source : _sources) {
-        //     M += source->field_at_position(pos);
-        // }
+#ifdef DRAWALLFIELD
+        for (const auto & source : _sources) {
+            M += source->field_at_position(pos);
+        }
+#endif // DRAWALLFIELD
         for (int i = 0; i < _n; ++i) {
             VectorDd r     = pos - _pos[i];
             VectorDd r_hat = r / r.norm();
@@ -467,8 +437,6 @@ namespace PhysX {
 
     template<int Dim>
     bool MagneticSand<Dim>::collide2particle(const VectorDd & pos) const {
-        // if (std::abs(pos[0]) > 10 || std::abs(pos[1]) > 5 || std::abs(pos[2]) > 5)
-        //     return true;
         if (std::abs(pos[0] - 0.5) > 5 || std::abs(pos[1] - 0.5) > 5)
             return true;
 
@@ -555,94 +523,29 @@ namespace PhysX {
             static std::uniform_real_distribution<double> nd(0, 1);
 
             double r = 1.05;
-            // double maxB = 0;
-            // int    cnt  = 0;
-            //  for (int i = 0; i < 11; ++i) {
-            //      double theta = std::acos(double(i) / 20. * 2 - 1);
-            //      int    n     = i == 0 ? 1 : 6;
-            //      for (int j = 0; j < n; ++j) {
-            //          double   phi = j * 2 * kPi / 20.;
-            //          VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
-            //          if (! collide2particle(pos)) {
-            //              double B = cal_field_at_position(pos).norm();
-            //              maxB     = std::max(maxB, B);
-            //          }
-            //      }
-            //  }
-            //  std::cout << "maxB = " << maxB << std::endl;
-
-            // for (int i = 0; i < 11; ++i) {
-            //     double theta = std::acos(double(i) / 20. * 2 - 1);
-            //     int    n     = i == 0 ? 1 : 6;
-            //     for (int j = 0; j < n; ++j) {
-            //         double   phi = j * 2 * kPi / 20.;
-            //         VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
-            //         if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            //             _sample_pos.push_back(pos);
-            //             _sample_pos.push_back(pos);
-
-            //            std::vector<VectorDd> temp;
-            //            temp.push_back(pos);
-
-            //            _history.push_back(temp);
-            //            _history.push_back(temp);
-            //            ++cnt;
-            //        }
-            //    }
-            //}
-
-            std::vector<VectorDd> list;
 
             double maxB = 0;
             int    cnt  = 0;
 
-            for (int i = 0; i < 51; ++i)
-                for (int j = 0; j < 51; ++j) {
-                    VectorDd pos = VectorDd(1.0 * i / 50.0, 1.0 * j / 50.0, 0);
-                    if (! image[int(pos[0] * 1000)][int(pos[1] * 1000)]) {
-                        double B = cal_field_at_position(pos).norm();
-                        maxB     = std::max(maxB, B);
-                        list.push_back(pos);
+            std::vector<VectorDd> list;
+
+            int    balls[] { 0 };
+            double startPhi[] { 0 };
+
+            for (int b = 0; b < 1; ++b)
+                for (int i = 0; i < 21; ++i) {
+                    double theta = std::acos(double(i) / 40. * 2 - 1);
+                    int    n     = i == 0 ? 1 : 21;
+                    for (int j = 0; j < n; ++j) {
+                        double   phi = j * 2 * kPi / 40. + startPhi[b];
+                        VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[b];
+                        if (! collide2particle(pos)) {
+                            double B = cal_field_at_position(pos).norm();
+                            maxB     = std::max(maxB, B);
+                            list.push_back(pos);
+                        }
                     }
                 }
-
-            // for (int i = 0; i < 21; ++i) {
-            //     double theta = std::acos(double(i) / 40. * 2 - 1);
-            //     int    n     = i == 0 ? 1 : 21;
-            //     for (int j = 0; j < n; ++j) {
-            //         double   phi = j * 2 * kPi / 40.;
-            //         VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            //         if (! collide2particle(pos)) {
-            //             double B = cal_field_at_position(pos).norm();
-            //             maxB     = std::max(maxB, B);
-            //             list.push_back(pos);
-            //         }
-            //     }
-            // }
-            //  for (int i = 0; i < 11; ++i) {
-            //      double theta = std::acos(double(i) / 20. * 2 - 1);
-            //      int    n     = i == 0 ? 1 : 11;
-            //      for (int j = 0; j < n; ++j) {
-            //          double   phi = j * 2 * kPi / 20.;
-            //          VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            //          if (! collide2particle(pos)) {
-            //              double B = cal_field_at_position(pos).norm();
-            //              maxB     = std::max(maxB, B);
-            //          }
-            //      }
-            //  }
-            //  for (int i = 0; i < 11; ++i) {
-            //      double theta = std::acos(double(i) / 20. * 2 - 1);
-            //      int    n     = i == 0 ? 1 : 20;
-            //      for (int j = 0; j < n; ++j) {
-            //          double   phi = j * 2 * kPi / 20.;
-            //          VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[1];
-            //          if (! collide2particle(pos)) {
-            //              double B = cal_field_at_position(pos).norm();
-            //              maxB     = std::max(maxB, B);
-            //          }
-            //      }
-            //  }
 
             std::cout << "maxB = " << maxB << std::endl;
 
@@ -664,311 +567,72 @@ namespace PhysX {
                 }
             }
 
-            // for (int i = 0; i < 21; ++i) {
-            //     double theta = std::acos(double(i) / 40. * 2 - 1);
-            //     int    n     = i == 0 ? 1 : 21;
-            //     for (int j = 0; j < n; ++j) {
-            //         double   phi = j * 2 * kPi / 40.;
-            //         VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            //         if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            //             _sample_pos.push_back(pos);
-            //             _sample_pos.push_back(pos);
+            MatrixDd p1, p2, p3, p4;
+            p1 << -1, 0, 0, 0, 1, 0, 0, 0, 1;
+            p2 << 1, 0, 0, 0, -1, 0, 0, 0, 1;
+            p3 << 1, 0, 0, 0, 1, 0, 0, 0, -1;
+            p4 << 0, -1, 0, -1, 0, 0, 0, 0, 1;
 
-            //            std::vector<VectorDd> temp;
-            //            temp.push_back(pos);
+            // x symmetric
+            if (false) {
+                for (int i = 0; i < cnt; ++i) {
+                    _sample_pos.push_back(p1 * _sample_pos[i * 2]);
+                    _sample_pos.push_back(p1 * _sample_pos[i * 2]);
 
-            //            _history.push_back(temp);
-            //            _history.push_back(temp);
-            //            ++cnt;
-            //        }
-            //    }
-            //}
+                    std::vector<VectorDd> temp;
+                    temp.push_back(p1 * _sample_pos[i * 2]);
 
-            // for (int i = 0; i < 11; ++i) {
-            //     double theta = std::acos(double(i) / 20. * 2 - 1);
-            //     int    n     = i == 0 ? 1 : 20;
-            //     for (int j = 0; j < n; ++j) {
-            //         double   phi = j * 2 * kPi / 20.;
-            //         VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[1];
-            //         if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            //             _sample_pos.push_back(pos);
-            //             _sample_pos.push_back(pos);
+                    _history.push_back(temp);
+                    _history.push_back(temp);
+                }
+                cnt *= 2;
+            }
 
-            //            std::vector<VectorDd> temp;
-            //            temp.push_back(pos);
+            // y symmetric
+            if (false) {
+                for (int i = 0; i < cnt; ++i) {
+                    _sample_pos.push_back(p2 * _sample_pos[i * 2]);
+                    _sample_pos.push_back(p2 * _sample_pos[i * 2]);
 
-            //            _history.push_back(temp);
-            //            _history.push_back(temp);
-            //            ++cnt;
-            //        }
-            //    }
-            // }
+                    std::vector<VectorDd> temp;
+                    temp.push_back(p2 * _sample_pos[i * 2]);
 
-            // MatrixDd p1, p2, p3, p4;
-            // p1 << -1, 0, 0, 0, 1, 0, 0, 0, 1;
-            // p2 << 1, 0, 0, 0, -1, 0, 0, 0, 1;
-            // p3 << 1, 0, 0, 0, 1, 0, 0, 0, -1;
-            // p4 << 0, -1, 0, -1, 0, 0, 0, 0, 1;
+                    _history.push_back(temp);
+                    _history.push_back(temp);
+                }
+                cnt *= 2;
+            }
 
-            // for (int i = 0; i < cnt; ++i) {
-            //     _sample_pos.push_back(p1 * _sample_pos[i * 2]);
-            //     _sample_pos.push_back(p1 * _sample_pos[i * 2]);
+            // z symmetric
+            if (false) {
+                for (int i = 0; i < cnt; ++i) {
+                    _sample_pos.push_back(p3 * _sample_pos[i * 2]);
+                    _sample_pos.push_back(p3 * _sample_pos[i * 2]);
 
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(p1 * _sample_pos[i * 2]);
+                    std::vector<VectorDd> temp;
+                    temp.push_back(p3 * _sample_pos[i * 2]);
 
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //}
-            // cnt *= 2;
+                    _history.push_back(temp);
+                    _history.push_back(temp);
+                }
+                cnt *= 2;
+            }
 
-            // for (int i = 0; i < cnt; ++i) {
-            //     _sample_pos.push_back(p2 * _sample_pos[i * 2]);
-            //     _sample_pos.push_back(p2 * _sample_pos[i * 2]);
+            // diagnal symmetric
+            if (false) {
+                for (int i = 0; i < cnt; ++i) {
+                    _sample_pos.push_back(p3 * _sample_pos[i * 2]);
+                    _sample_pos.push_back(p3 * _sample_pos[i * 2]);
 
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(p2 * _sample_pos[i * 2]);
+                    std::vector<VectorDd> temp;
+                    temp.push_back(p3 * _sample_pos[i * 2]);
 
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //}
-            // cnt *= 2;
-
-            // for (int i = 0; i < cnt; ++i) {
-            //     _sample_pos.push_back(p3 * _sample_pos[i * 2]);
-            //     _sample_pos.push_back(p3 * _sample_pos[i * 2]);
-
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(p3 * _sample_pos[i * 2]);
-
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //}
-            // cnt *= 2;
-
-            // for (const auto & center : _ballCenter) {
-            //     _sample_pos.push_back(VectorDd(1, 0, 0) + center);
-            //     _sample_pos.push_back(VectorDd(1, 0, 0) + center);
-
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(VectorDd(1, 0, 0) + center);
-
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //    ++cnt;
-            //}
-            // for (const auto & center : _ballCenter) {
-            //    _sample_pos.push_back(VectorDd(-1, 0, 0) + center);
-            //    _sample_pos.push_back(VectorDd(-1, 0, 0) + center);
-
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(VectorDd(-1, 0, 0) + center);
-
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //    ++cnt;
-            //}
-
-            // for (int i = 0; i < cnt; ++i) {
-            //     _sample_pos.push_back(p4 * _sample_pos[i * 2]);
-            //     _sample_pos.push_back(p4 * _sample_pos[i * 2]);
-
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(p4 * _sample_pos[i * 2]);
-
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //}
-            // cnt *= 2;
-
-            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            // double theta = std::acos(0.0);
-            // int    N     = 50;
-            // int    n     = N;
-            // double r     = 1.05;
-            // double maxB  = 0.686012;
-
-            // MatrixDd m1;
-            // m1 << 1, 0, 0, 0, -1, 0, 0, 0, 1;
-
-            // MatrixDd m2;
-            // m2 << -1, 0, 0, 0, 1, 0, 0, 0, 1;
-
-            // for (int j = 0; j < n; ++j) {
-            //     double   phi = double(j) * kPi / 2. / n;
-            //     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
-            //     if (! collide2particle(pos)) {
-            //         double B = cal_field_at_position(pos).norm();
-            //         maxB     = std::max(maxB, B);
-            //     }
-            // }
-
-            // n = 2 * N;
-            // for (int j = 0; j < n; ++j) {
-            //     double   phi = double(j) * kPi / n - kPi / 2;
-            //     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            //     if (! collide2particle(pos)) {
-            //         double B = cal_field_at_position(pos).norm();
-            //         maxB     = std::max(maxB, B);
-            //     }
-            // }
-
-            // for (int j = 0; j < n; ++j) {
-            //     double   phi = double(j) * kPi / n - kPi / 2;
-            //     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[1];
-            //     if (! collide2particle(pos)) {
-            //         double B = cal_field_at_position(pos).norm();
-            //         maxB     = std::max(maxB, B);
-            //     }
-            // }
-
-            // n = 4 * N;
-            // for (int j = 0; j < n; ++j) {
-            //     double   phi = double(j) * 2 * kPi / n;
-            //     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            //     if (! collide2particle(pos)) {
-            //         double B = cal_field_at_position(pos).norm();
-            //         maxB     = std::max(maxB, B);
-            //     }
-            // }
-
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            // int cnt = 0;
-            //// n       = N;
-            //// for (int j = 0; j < n; ++j) {
-            ////     double   phi = double(j) * kPi / 2. / n;
-            ////     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
-            ////     if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            ////         _sample_pos.push_back(pos);
-            ////         _sample_pos.push_back(pos);
-
-            ////        std::vector<VectorDd> temp;
-            ////        temp.push_back(pos);
-
-            ////        _history.push_back(temp);
-            ////        _history.push_back(temp);
-            ////        cnt += 1;
-            ////    }
-            ////}
-
-            // n = 2 * N;
-            // for (int j = 0; j < n; ++j) {
-            //     double   phi = double(j) * kPi / n - kPi / 2;
-            //     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            //     if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            //         _sample_pos.push_back(pos);
-            //         _sample_pos.push_back(pos);
-
-            //        std::vector<VectorDd> temp;
-            //        temp.push_back(pos);
-
-            //        _history.push_back(temp);
-            //        _history.push_back(temp);
-            //        cnt += 1;
-            //    }
-            //}
-
-            //// for (int j = 0; j < n; ++j) {
-            ////     double   phi = double(j) * kPi / n;
-            ////     VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[1];
-            ////     if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            ////         _sample_pos.push_back(pos);
-            ////         _sample_pos.push_back(pos);
-
-            ////        std::vector<VectorDd> temp;
-            ////        temp.push_back(pos);
-
-            ////        _history.push_back(temp);
-            ////        _history.push_back(temp);
-            ////        cnt += 1;
-            ////    }
-            ////}
-
-            //// n = 4 * N;
-            ////     for (int j = 0; j < n; ++j) {
-            ////         double   phi = double(j) * 2 * kPi / n;
-            ////         VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[2];
-            ////         if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            ////             {
-            ////                 _sample_pos.push_back(pos);
-            ////                 _sample_pos.push_back(pos);
-
-            ////            std::vector<VectorDd> temp;
-            ////            temp.push_back(pos);
-
-            ////            _history.push_back(temp);
-            ////            _history.push_back(temp);
-            ////            cnt += 1;
-            ////        }
-            ////        {
-            ////            _sample_pos.push_back(m2 * pos - _ballCenter[2] + _ballCenter[3]);
-            ////            _sample_pos.push_back(m2 * pos - _ballCenter[2] + _ballCenter[3]);
-
-            ////            std::vector<VectorDd> temp;
-            ////            temp.push_back(m2 * pos - _ballCenter[2] + _ballCenter[3]);
-
-            ////            _history.push_back(temp);
-            ////            _history.push_back(temp);
-            ////            cnt += 1;
-            ////        }
-            ////    }
-            ////}
-            //// for (int j = 0; j < n; ++j) {
-            ////    double   phi = double(j) * 2 * kPi / n;
-            ////    VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[4];
-            ////    if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            ////        _sample_pos.push_back(pos);
-            ////        _sample_pos.push_back(pos);
-
-            ////        std::vector<VectorDd> temp;
-            ////        temp.push_back(pos);
-
-            ////        _history.push_back(temp);
-            ////        _history.push_back(temp);
-            ////        cnt += 1;
-            ////    }
-            ////}
-            //// for (int j = 0; j < n; ++j) {
-            ////    double   phi = double(j) * 2 * kPi / n;
-            ////    VectorDd pos = r * VectorDd(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)) + _ballCenter[0];
-            ////    if (! collide2particle(pos) && nd(rng) <= cal_field_at_position(pos).norm() / maxB) {
-            ////        _sample_pos.push_back(pos);
-            ////        _sample_pos.push_back(pos);
-
-            ////        std::vector<VectorDd> temp;
-            ////        temp.push_back(pos);
-
-            ////        _history.push_back(temp);
-            ////        _history.push_back(temp);
-            ////        cnt += 1;
-            ////    }
-            ////}
-
-            // for (int i = 0; i < cnt; ++i) {
-            //     _sample_pos.push_back(m1 * _sample_pos[i * 2]);
-            //     _sample_pos.push_back(m1 * _sample_pos[i * 2]);
-
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(m1 * _sample_pos[i * 2]);
-
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //}
-            // cnt *= 2;
-
-            // for (int i = 0; i < cnt; ++i) {
-            //     _sample_pos.push_back(m2 * _sample_pos[i * 2]);
-            //     _sample_pos.push_back(m2 * _sample_pos[i * 2]);
-
-            //    std::vector<VectorDd> temp;
-            //    temp.push_back(m2 * _sample_pos[i * 2]);
-
-            //    _history.push_back(temp);
-            //    _history.push_back(temp);
-            //}
-            // cnt *= 2;
+                    _history.push_back(temp);
+                    _history.push_back(temp);
+                }
+                cnt *= 2;
+            }
+            cnt *= 2;
         }
 
         _fixed = std::vector<bool>(_sample_pos.size(), false);
