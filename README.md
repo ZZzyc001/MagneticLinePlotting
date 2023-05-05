@@ -51,3 +51,5 @@ To run the project, you should enter into `./MagneticLinePlotting/Binary/Release
 - In the `void printTorque()`, there is some options for you to choose which torque to print
 - If you want to rotate the external field, please turn on `ROTATEEXTERNALFIELD`
 - If you want to test the interaction just for one ball, please turn on `TESTONEBALL`
+- If you want to make the lines denser, please add the limitation of the `cnt` in `void generateSampleParticle()`
+- If the distribution has any symmetric, please turn on the corresponding manipulation after generate the test particles in `void generateSampleParticle()`
